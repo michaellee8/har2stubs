@@ -84,11 +84,11 @@ fileprivate let injectedStubs: [Stub] = [
             scheme: "${params.scheme}",
             path: "${params.path}",
             method: "${params.method}",
-            requestHeaders: mustDecodeJSON(#"""${JSON.stringify(params.requestHeader)}"""#) as! [String: String]
+            requestHeaders: mustDecodeJSON(#"${JSON.stringify(params.requestHeader)}"#) as! [String: String]
         ),
-        responseBody: Data(#"""${JSON.stringify(params.responseBody)}"""#.utf8),
+        responseBody: Data(#"${JSON.stringify(params.responseBody)}"#.utf8),
         statusCode: ${params.statusCode},
-        responseHeaders: mustDecodeJSON(#"""${JSON.stringify(params.responseHeader)}"""#) as! [String: String]
+        responseHeaders: mustDecodeJSON(#"${JSON.stringify(params.responseHeader)}"#) as! [String: String]
     ),
 ` : `
     Stub(
@@ -97,12 +97,12 @@ fileprivate let injectedStubs: [Stub] = [
             scheme: "${params.scheme}",
             path: "${params.path}",
             method: "${params.method}",
-            requestHeaders: mustDecodeJSON(#"""${JSON.stringify(params.requestHeader)}"""#) as! [String: String],
-            body: mustDecodeJSON(#"""${JSON.stringify(params.requestBody)}"""#) as! [String: String]
+            requestHeaders: mustDecodeJSON(#"${JSON.stringify(params.requestHeader)}"#) as! [String: String],
+            body: mustDecodeJSON(#"${JSON.stringify(params.requestBody)}"#) as! [String: Any]
         ),
-        responseBody: Data(#"""${JSON.stringify(params.responseBody)}"""#.utf8),
+        responseBody: Data(#"${JSON.stringify(params.responseBody)}"#.utf8),
         statusCode: ${params.statusCode},
-        responseHeaders: mustDecodeJSON(#"""${JSON.stringify(params.responseHeader)}"""#) as! [String: String]
+        responseHeaders: mustDecodeJSON(#"${JSON.stringify(params.responseHeader)}"#) as! [String: String]
     ),
 `).join("\n")}
 ]
@@ -124,11 +124,16 @@ public class StubURLProtocol: URLProtocol {
     private static let urls = injectedURLs
     
     private class func matchStub(req: URLRequest) -> Stub? {
+        var inputReq: URLRequest
         if let httpBodyData = httpBodyStreamToData(stream: req.httpBodyStream) {
-            setProperty(httpBodyData, forKey: httpBodyKey, in: req as! NSMutableURLRequest)
+            let mutableReq = (req as NSURLRequest).mutableCopy() as! NSMutableURLRequest
+            setProperty(httpBodyData, forKey: httpBodyKey, in: mutableReq)
+            inputReq = mutableReq as URLRequest
+        } else {
+            inputReq = req
         }
         for stub in stubs {
-            if stub.requestMatcher(req) {
+            if stub.requestMatcher(inputReq) {
                 return stub
             }
         }
@@ -165,7 +170,7 @@ public class StubURLProtocol: URLProtocol {
             return comp.url
         }
         if !StubURLProtocol.urls.contains(cleanURL){
-            fatalError("URL not mocked, inconsistent injectedURLs: \(url.absoluteString)")
+            fatalError("URL not mocked, inconsistent injectedURLs: \\(url.absoluteString)")
         }
         if let stub = StubURLProtocol.matchStub(req: request){
             let res = HTTPURLResponse(url: url, statusCode: stub.statusCode, httpVersion: nil, headerFields: stub.responseHeaders)!
@@ -174,7 +179,7 @@ public class StubURLProtocol: URLProtocol {
                 self.client?.urlProtocol(self, didLoad: d)
             }
         }else{
-            fatalError("URL not mocked: \(url.absoluteString)")
+            fatalError("URL not mocked: \\(url.absoluteString)")
         }
         self.client?.urlProtocolDidFinishLoading(self)
     }
